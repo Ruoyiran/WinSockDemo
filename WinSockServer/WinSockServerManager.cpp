@@ -12,8 +12,7 @@ WinSockServerManager::WinSockServerManager() :
 	m_runReceiveThread(FALSE),
 	m_acceptThread(NULL),
 	m_sendThread(NULL),
-	m_clientJoinedCallback(NULL),
-	m_clientQuitCallback(NULL)
+	m_pWinSockServerListener(NULL)
 {
 	m_bufferMutex = CreateSemaphore(NULL, 1, 1, NULL);
 }
@@ -47,7 +46,7 @@ void WinSockServerManager::StopServer()
 
 	WSACleanup();	// 终止对套接字库的使用
 
-	ClearAllCallbacks();
+	m_pWinSockServerListener = NULL;
 }
 
 BOOL WinSockServerManager::CreateSocket(int type) {
@@ -220,36 +219,25 @@ void WinSockServerManager::SendToClient(std::string msg)
 	m_sendedMessage = msg;
 }
 
-void WinSockServerManager::SetClientJoinedCallback(ClientJoinedCallback callback)
+void WinSockServerManager::SetWinSockServerListener(WinSockServerListener * listener)
 {
-	m_clientJoinedCallback = callback;
-}
-
-void WinSockServerManager::SetClientQuitCallback(ClientQuitCallback callback)
-{
-	m_clientQuitCallback = callback;
+	m_pWinSockServerListener = listener;
 }
 
 void WinSockServerManager::ClientJoined(SOCKET clientSocket, char* clientIP)
 {
 	m_clientSocketGroup.push_back(clientSocket);
-	if (m_clientJoinedCallback != NULL) {
-		m_clientJoinedCallback(clientSocket, clientIP);
+	if (m_pWinSockServerListener != NULL) {
+		m_pWinSockServerListener->ClientJoined(clientSocket, clientIP);
 	}
 }
 
 void WinSockServerManager::ClientQuit(SOCKET clientSocket)
 {
 	CloseClientConnection(clientSocket);
-	if (m_clientQuitCallback != NULL) {
-		m_clientQuitCallback(clientSocket);
+	if (m_pWinSockServerListener != NULL) {
+		m_pWinSockServerListener->ClientQuit(clientSocket);
 	}
-}
-
-void WinSockServerManager::ClearAllCallbacks()
-{
-	m_clientJoinedCallback = NULL;
-	m_clientQuitCallback = NULL;
 }
 
 void WinSockServerManager::CloseClientConnection(SOCKET clientSocket)

@@ -8,10 +8,22 @@
 #include "afxwin.h"
 #include <list>
 
+
 // CWinSockServerDlg 对话框
-class CWinSockServerDlg : public CDialogEx
+class CWinSockServerDlg : public CDialogEx, public WinSockServerListener
 {
-// 构造
+private:
+	struct ClientSocketData {
+		SOCKET clientSocket;
+		CString clientIP;
+		ClientSocketData(SOCKET clientSocket, CString clientIP) {
+			this->clientSocket = clientSocket;
+			this->clientIP = clientIP;
+		}
+	};
+
+	void StopServer();
+	// 构造
 public:
 	CWinSockServerDlg(CWnd* pParent = NULL);	// 标准构造函数
 
@@ -24,27 +36,23 @@ protected:
 	virtual void DoDataExchange(CDataExchange* pDX);	// DDX/DDV 支持
 
 private:
-	struct ClientSocketData {
-		SOCKET clientSocket;
-		CString clientIP;
-		ClientSocketData(SOCKET clientSocket, CString clientIP) {
-			this->clientSocket = clientSocket;
-			this->clientIP = clientIP;
-		}
-	};
 	static CWinSockServerDlg* m_pDlgInstance;
+
+	std::list<ClientSocketData> m_clientSocketDataBuffer;
 	WinSockServerManager m_socketServerManager;
 	CListBox m_clientList;
-	std::list<ClientSocketData> m_clientSocketDataBuffer;
 
-	int FindClientPositionInList(SOCKET clientSocket);
-	void RemoveClientData(int index);
 private:
-	static void ClientJoined(SOCKET clientSocket, char* clientIP);
-	static void ClientQuit(SOCKET clientSocket);
+	void StartServer(int port);
+
+	void ClientJoined(SOCKET clientSocket, char* clientIP);
+	void ClientQuit(SOCKET clientSocket);
 
 	void AddClientToList(SOCKET clientSocket, char* clientIP);
 	void RemoveClientFromList(SOCKET clientSocket);
+
+	int FindClientPositionInList(SOCKET clientSocket);
+	void RemoveClientData(int index);
 
 // 实现
 protected:

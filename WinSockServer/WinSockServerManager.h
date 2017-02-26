@@ -3,20 +3,21 @@
 
 const int kMaxRecvDataBufferSize = 1024;
 
+class WinSockServerListener {
+public:
+	virtual void ClientJoined(SOCKET, char*) = 0;
+	virtual void ClientQuit(SOCKET) = 0;
+};
+
 class WinSockServerManager
 {
-public:
-	typedef void(*ClientJoinedCallback) (SOCKET, char*);
-	typedef void(*ClientQuitCallback) (SOCKET);
-
 public:
 	WinSockServerManager();
 	~WinSockServerManager();
 	BOOL StartServer(int sockType, int port);
 	void StopServer();
 	void SendToClient(std::string msg);
-	void SetClientJoinedCallback(ClientJoinedCallback callback);
-	void SetClientQuitCallback(ClientQuitCallback callback);
+	void SetWinSockServerListener(WinSockServerListener* listener);
 
 protected:
 	BOOL CreateSocket(int sockType); // type: SOCK_STREAM or SOCK_DGRAM  分别对应TCP和UDP
@@ -37,10 +38,7 @@ private:
 	void ClearAllCallbacks();
 
 private:
-	ClientJoinedCallback m_clientJoinedCallback;
-	ClientQuitCallback m_clientQuitCallback;
-
-private:
+	WinSockServerListener* m_pWinSockServerListener;
 	HANDLE m_bufferMutex;		// 保证线程互斥成功并正常通信的信号量句柄
 	HANDLE m_sendThread;
 	HANDLE m_acceptThread;

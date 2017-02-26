@@ -14,7 +14,6 @@
 
 // CWinSockServerDlg 对话框
 
-
 CWinSockServerDlg* CWinSockServerDlg::m_pDlgInstance = NULL;
 
 CWinSockServerDlg::CWinSockServerDlg(CWnd* pParent /*=NULL*/)
@@ -91,26 +90,14 @@ HCURSOR CWinSockServerDlg::OnQueryDragIcon()
 
 void CWinSockServerDlg::OnBnClickedStartServer()
 {
-	m_socketServerManager.SetClientJoinedCallback(CWinSockServerDlg::ClientJoined);
-	m_socketServerManager.SetClientQuitCallback(CWinSockServerDlg::ClientQuit);
-	
 	BOOL isChecked = (SendDlgItemMessage(IDC_START_SERVER, BM_GETCHECK) == BST_CHECKED);
-	if (isChecked)
-	{
-		BOOL success = m_socketServerManager.StartServer(SOCK_STREAM, 6000);
-		if (success) {
-			MessageBox(L"服务器已启动");
-		}
-		else {
-			MessageBox(L"服务器启动失败");
-		}
+	if (isChecked) {
+		StartServer(6000);
 	}
-	else
-	{
-		m_socketServerManager.StopServer();
+	else {
+		StopServer();
 	}
 }
-
 
 void CWinSockServerDlg::OnBnClickedSend()
 {
@@ -170,4 +157,21 @@ void CWinSockServerDlg::RemoveClientData(int targetPos)
 		++index;
 	}
 	m_clientSocketDataBuffer.erase(iter);
+}
+
+void CWinSockServerDlg::StartServer(int port)
+{
+	BOOL success = m_socketServerManager.StartServer(SOCK_STREAM, port);
+	if (success) {
+		m_socketServerManager.SetWinSockServerListener(this);
+		MessageBox(L"服务器已启动");
+	}
+	else {
+		MessageBox(L"服务器启动失败");
+	}
+}
+
+void CWinSockServerDlg::StopServer()
+{
+	m_socketServerManager.StopServer();
 }
