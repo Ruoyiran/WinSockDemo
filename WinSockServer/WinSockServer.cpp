@@ -72,6 +72,8 @@ BOOL CWinSockServerApp::InitInstance()
 
 	CWinSockServerDlg dlg;
 	m_pMainWnd = &dlg;
+	::SetWindowLong(m_pMainWnd->m_hWnd,
+		GWL_STYLE, WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU);
 	INT_PTR nResponse = dlg.DoModal();
 	if (nResponse == IDOK)
 	{

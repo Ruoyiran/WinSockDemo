@@ -6,6 +6,7 @@
 #include "WinSockServer.h"
 #include "WinSockServerDlg.h"
 #include "afxdialogex.h"
+#include "Command.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -13,6 +14,7 @@
 
 
 // CWinSockServerDlg 对话框
+CWinSockServerDlg* CWinSockServerDlg::m_pDlgInstance = NULL;
 
 const CString kDefaultPortNumber = L"6000";
 
@@ -38,8 +40,6 @@ CString GetCurrentSystemTime() {
 	return currentTime;
 }
 
-CWinSockServerDlg* CWinSockServerDlg::m_pDlgInstance = NULL;
-
 int CWinSockServerDlg::GetPortNumber()
 {
 	CString portText;
@@ -59,10 +59,25 @@ CString CWinSockServerDlg::GetHostIpAddr()
 	return L"127.0.0.1";
 }
 
+void CWinSockServerDlg::BulbStateIsOn()
+{
+	SetDlgItemText(IDE_CLIENT_LIGHT_BULB_STATE, L"亮");
+	SetDlgItemText(IDB_LIGHT_SWITCH, L"关灯");
+	GetDlgItem(IDB_LIGHT_SWITCH)->EnableWindow(TRUE);
+}
+
+void CWinSockServerDlg::BulbStateIsOff()
+{
+	SetDlgItemText(IDE_CLIENT_LIGHT_BULB_STATE, L"暗");
+	SetDlgItemText(IDB_LIGHT_SWITCH, L"开灯");
+	GetDlgItem(IDB_LIGHT_SWITCH)->EnableWindow(TRUE);
+}
+
 CWinSockServerDlg::CWinSockServerDlg(CWnd* pParent /*=NULL*/)
 	: CDialogEx(IDD_WINSOCKSERVER_DIALOG, pParent)
 {
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
+	InitClientCommands();
 }
 
 void CWinSockServerDlg::DoDataExchange(CDataExchange* pDX)
@@ -78,6 +93,8 @@ BEGIN_MESSAGE_MAP(CWinSockServerDlg, CDialogEx)
 	ON_BN_CLICKED(IDC_START_SERVER, &CWinSockServerDlg::OnBnClickedStartServer)
 	ON_BN_CLICKED(IDB_SEND, &CWinSockServerDlg::OnBnClickedSend)
 	ON_WM_CLOSE()
+	ON_BN_CLICKED(IDB_LIGHT_SWITCH, &CWinSockServerDlg::OnBnClickedLightSwitch)
+	ON_LBN_SELCHANGE(IDL_CLIENT_LIST, &CWinSockServerDlg::OnClientListSelectChanged)
 END_MESSAGE_MAP()
 
 
@@ -94,10 +111,8 @@ BOOL CWinSockServerDlg::OnInitDialog()
 
 									// TODO: 在此添加额外的初始化代码
 	m_pDlgInstance = this;
-	SetDlgItemText(IDE_PORT_NUMBER, kDefaultPortNumber);
-	CString hostIP = GetHostIpAddr();
-	SetDlgItemText(IDC_HOST_IP_ADDR, hostIP);
-
+	InitUIComponents();
+	
 	return TRUE;  // 除非将焦点设置到控件，否则返回 TRUE
 }
 
@@ -137,6 +152,37 @@ HCURSOR CWinSockServerDlg::OnQueryDragIcon()
 	return static_cast<HCURSOR>(m_hIcon);
 }
 
+void CWinSockServerDlg::InitUIComponents()
+{
+	CString hostIP = GetHostIpAddr();
+	SetDlgItemText(IDC_HOST_IP_ADDR, hostIP);
+	SetDlgItemText(IDE_PORT_NUMBER, kDefaultPortNumber);
+	SendDlgItemMessage(IDC_SEND_TO_ALL_CLIENTS, BM_SETCHECK, TRUE);
+	DisableBulbState();
+}
+
+void CWinSockServerDlg::InitClientCommands()
+{
+	m_clientCommands[CLIENT_LIGHT_ON_COMMAND] = CWinSockServerDlg::ClientLightOnCommand;
+	m_clientCommands[CLIENT_LIGHT_OFF_COMMAND] = CWinSockServerDlg::ClientLightOffCommand;
+}
+
+void CWinSockServerDlg::ClientLightOnCommand(SOCKET clientSocket) {
+	m_pDlgInstance->m_clientSwitchingUnitData[clientSocket].SetBulbState(TRUE);
+
+	BOOL isSelectedClient = m_pDlgInstance->CheckIsSelectedClient(clientSocket);
+	if (isSelectedClient)
+		m_pDlgInstance->BulbStateIsOn();
+}
+
+void CWinSockServerDlg::ClientLightOffCommand(SOCKET clientSocket) {
+	m_pDlgInstance->m_clientSwitchingUnitData[clientSocket].SetBulbState(FALSE);
+
+	BOOL isSelectedClient = m_pDlgInstance->CheckIsSelectedClient(clientSocket);
+	if (isSelectedClient)
+		m_pDlgInstance->BulbStateIsOff();
+}
+
 void CWinSockServerDlg::OnBnClickedStartServer()
 {
 	BOOL isChecked = (SendDlgItemMessage(IDC_START_SERVER, BM_GETCHECK) == BST_CHECKED);
@@ -151,6 +197,7 @@ void CWinSockServerDlg::OnBnClickedStartServer()
 	else {
 		StopServer();
 		m_clientList.ResetContent();
+		OnClientListSelectChanged();
 	}
 }
 
@@ -170,14 +217,19 @@ void CWinSockServerDlg::OnBnClickedSend()
 		return;
 	}
 
-	std::string ansiData = UnicodeToAnsi(sendData);
-	m_socketServerManager.SendToClient(ansiData);
+	BOOL sendToAll = SendDlgItemMessage(IDC_SEND_TO_ALL_CLIENTS, BM_GETCHECK) == BST_CHECKED;
+	if (sendToAll) {
+		SendToAllClients(sendData);
+	}
+	else {
+		SendToOneClient(sendData);
+	}
 	SetDlgItemText(IDE_SEND, L"");
 }
 
 void CWinSockServerDlg::NotifyClientServerReadyForQuit()
 {
-	m_socketServerManager.SendToClient(WinSockServerManager::SERVER_QUIT_COMMAND);
+	m_socketServerManager.SendToClients(SERVER_QUIT_COMMAND);
 	Sleep(300);
 }
 
@@ -193,10 +245,29 @@ void CWinSockServerDlg::ClientQuit(SOCKET clientSocket)
 		m_pDlgInstance->RemoveClientFromList(clientSocket);
 }
 
-void CWinSockServerDlg::ClientMessage(CString clientIP, CString message)
+void CWinSockServerDlg::ClientMessage(SOCKET clientSocket, CString clientIP, CString message)
 {
-	CString formatedMessage = GetFormatedString(clientIP, message);
-	AppendClientMessage(formatedMessage);
+	std::string ansiStr = UnicodeToAnsi(message);
+	BOOL isCommandMsg = IsClientCommandMessage(ansiStr);
+	if (!isCommandMsg) {
+		CString formatedMessage = GetFormatedString(clientIP, message);
+		AppendClientMessage(formatedMessage);
+	}
+	else {
+		ProcessClientCommand(clientSocket, ansiStr.c_str());
+	}
+}
+
+BOOL CWinSockServerDlg::IsClientCommandMessage(std::string& message)
+{
+	return m_clientCommands.find(message) != m_clientCommands.end();
+}
+
+void CWinSockServerDlg::ProcessClientCommand(SOCKET clientSocket, std::string cmd)
+{
+	if (m_clientSwitchingUnitData.find(clientSocket) == m_clientSwitchingUnitData.end())
+		m_clientSwitchingUnitData[clientSocket] = ClientSwitchingUnit();
+	m_clientCommands[cmd](clientSocket);
 }
 
 CString CWinSockServerDlg::GetFormatedString(CString &clientIP, CString &message)
@@ -244,7 +315,12 @@ void CWinSockServerDlg::RemoveClientFromList(SOCKET clientSocket)
 	if (index >= 0) {
 		m_clientList.DeleteString(index);
 		RemoveClientData(index);
+		OnClientListSelectChanged();
 	}
+
+	auto iter = m_clientSwitchingUnitData.find(clientSocket);
+	if (iter != m_clientSwitchingUnitData.end())
+		m_clientSwitchingUnitData.erase(iter);
 }
 
 int CWinSockServerDlg::FindClientPositionInList(SOCKET clientSocket)
@@ -258,6 +334,19 @@ int CWinSockServerDlg::FindClientPositionInList(SOCKET clientSocket)
 	}
 
 	return -1; // not found in the list
+}
+
+SOCKET CWinSockServerDlg::GetClientSocket(int position) {
+	if (position < 0) return INVALID_SOCKET;
+
+	std::list<ClientSocketData>::const_iterator iter = m_clientSocketDataBuffer.begin();
+	int i = 0;
+	while (i < position)
+	{
+		++i;
+		++iter;
+	}
+	return iter->clientSocket;
 }
 
 void CWinSockServerDlg::RemoveClientData(int targetPos)
@@ -298,4 +387,63 @@ void CWinSockServerDlg::OnClose()
 	StopServer();
 
 	__super::OnClose();
+}
+
+void CWinSockServerDlg::OnBnClickedLightSwitch()
+{
+	CString bulbState;
+	GetDlgItemText(IDE_CLIENT_LIGHT_BULB_STATE, bulbState);
+	if (bulbState == L"亮")
+		SendToOneClient(CString(CLIENT_LIGHT_OFF_COMMAND));
+	else if (bulbState == L"暗")
+		SendToOneClient(CString(CLIENT_LIGHT_ON_COMMAND));
+	Sleep(100);
+}
+
+void CWinSockServerDlg::OnClientListSelectChanged()
+{
+	int index = m_clientList.GetCurSel();
+	if (index == LB_ERR) {
+		DisableBulbState();
+		return;
+	}
+
+	SOCKET clientSocket = GetClientSocket(index);
+	BOOL bulbIsOn = m_clientSwitchingUnitData[clientSocket].GetBulbState();
+	if (bulbIsOn)
+		BulbStateIsOn();
+	else
+		BulbStateIsOff();
+}
+
+void CWinSockServerDlg::DisableBulbState()
+{
+	SetDlgItemText(IDE_CLIENT_LIGHT_BULB_STATE, L"未知");
+	GetDlgItem(IDB_LIGHT_SWITCH)->EnableWindow(FALSE);
+}
+
+void CWinSockServerDlg::SendToAllClients(CString & msg)
+{
+	std::string ansiData = UnicodeToAnsi(msg);
+	m_socketServerManager.SendToClients(ansiData);
+}
+
+void CWinSockServerDlg::SendToOneClient(CString sendData)
+{
+	int index = m_clientList.GetCurSel();
+	if (index == LB_ERR) {
+		MessageBox(L"未选中客户端");
+		return;
+	}
+
+	SOCKET clientSocket = GetClientSocket(index);
+	std::string ansiData = UnicodeToAnsi(sendData);
+	m_socketServerManager.SendToClient(clientSocket, ansiData);
+}
+
+BOOL CWinSockServerDlg::CheckIsSelectedClient(SOCKET clientSocket)
+{
+	int selIndex = m_clientList.GetCurSel();
+	SOCKET selectedClientSocket = GetClientSocket(selIndex);
+	return clientSocket == selectedClientSocket;
 }

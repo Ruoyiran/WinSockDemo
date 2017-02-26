@@ -65,5 +65,11 @@
     <Image Include="res\WinSockClient.ico">
       <Filter>资源文件</Filter>
     </Image>
+    <Image Include="res\LightOff.bmp">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="res\LightOn.bmp">
+      <Filter>资源文件</Filter>
+    </Image>
   </ItemGroup>
 </Project>

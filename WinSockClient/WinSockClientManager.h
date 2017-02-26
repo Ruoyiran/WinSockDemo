@@ -9,10 +9,6 @@ public:
 
 class WinSockClientManager {
 public:
-	const static char* SERVER_QUIT_COMMAND;
-	const static char* CLIENT_QUIT_COMMAND;
-
-public:
 	WinSockClientManager();
 	~WinSockClientManager();
 

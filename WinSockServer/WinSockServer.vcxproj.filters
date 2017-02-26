@@ -36,6 +36,12 @@
     <ClInclude Include="WinSockServerManager.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="Command.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="ClientSwitchingUnit.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="WinSockServer.cpp">
@@ -48,6 +54,9 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="WinSockServerManager.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="ClientSwitchingUnit.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

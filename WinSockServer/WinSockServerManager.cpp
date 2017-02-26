@@ -1,9 +1,8 @@
 #include "stdafx.h"
 #include "WinSockServerManager.h"
+#include "Command.h"
 
 const int kMaxRecvDataBufferSize = 1024;
-const char* WinSockServerManager::SERVER_QUIT_COMMAND = "server:quit";
-const char* WinSockServerManager::CLIENT_QUIT_COMMAND = "client:quit";
 
 struct WinSockPackage {
 	SOCKET clientSocket;
@@ -195,7 +194,12 @@ DWORD WINAPI WinSockServerManager::SendMessageThread(LPVOID lpParameter)
 
 	pThis->m_runSendThread = TRUE;
 	while (pThis->m_runSendThread) {
-		if (pThis->m_sendToClient) {
+		if (pThis->m_sendToAllClients) {
+			WaitForSingleObject(pThis->m_bufferMutex, INFINITE);
+			pThis->SendToAllClients();
+			ReleaseSemaphore(pThis->m_bufferMutex, 1, NULL);
+		}
+		else if (pThis->m_sendToClient) {
 			WaitForSingleObject(pThis->m_bufferMutex, INFINITE);
 			pThis->SendToClient();
 			ReleaseSemaphore(pThis->m_bufferMutex, 1, NULL);
@@ -204,18 +208,37 @@ DWORD WINAPI WinSockServerManager::SendMessageThread(LPVOID lpParameter)
 	return 0;
 }
 
-void WinSockServerManager::SendToClient()
+void WinSockServerManager::SendToAllClients()
 {
 	for (int i = 0; i < m_clientSocketGroup.size(); ++i) {
 		send(m_clientSocketGroup[i], m_sendedMessage.c_str(), m_sendedMessage.length(), 0);
 	}
+	m_sendToAllClients = FALSE;
+}
+
+void WinSockServerManager::SendToClient() {
+	for (int i = 0; i < m_clientSocketGroup.size(); ++i) {
+		if (m_targetClientSocket == m_clientSocketGroup[i]) {
+			send(m_clientSocketGroup[i], m_sendedMessage.c_str(), m_sendedMessage.length(), 0);
+			break;
+		}
+	}
 	m_sendToClient = FALSE;
 }
 
-void WinSockServerManager::SendToClient(std::string msg)
+void WinSockServerManager::SendToClients(std::string msg)
 {
+	m_sendToAllClients = TRUE;
+	m_sendToClient = FALSE;
+	m_sendedMessage = msg;
+}
+
+void WinSockServerManager::SendToClient(SOCKET clientSocket, std::string msg)
+{
+	m_sendToAllClients = FALSE;
 	m_sendToClient = TRUE;
 	m_sendedMessage = msg;
+	m_targetClientSocket = clientSocket;
 }
 
 void WinSockServerManager::SetWinSockServerListener(WinSockServerListener * listener)
@@ -252,7 +275,7 @@ void WinSockServerManager::ReceiveMessage(SOCKET clientSocket, CString &recvData
 {
 	if (recvData.GetLength() > 0 && m_pWinSockServerListener != NULL) {
 		const CString &clientIP = m_clientIpTable[clientSocket];
-		m_pWinSockServerListener->ClientMessage(clientIP, recvData);
+		m_pWinSockServerListener->ClientMessage(clientSocket, clientIP, recvData);
 	}
 }
 

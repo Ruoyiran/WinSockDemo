@@ -1,9 +1,8 @@
 #include "stdafx.h"
 #include "WinSockClientManager.h"
+#include "Command.h"
 
 const int kMaxRecvDataBufferSize = 1024;
-const char* WinSockClientManager::SERVER_QUIT_COMMAND = "server:quit";
-const char* WinSockClientManager::CLIENT_QUIT_COMMAND = "client:quit";
 
 WinSockClientManager::WinSockClientManager():
 	m_runSendThread(NULL),

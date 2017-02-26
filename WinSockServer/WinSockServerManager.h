@@ -6,21 +6,18 @@ class WinSockServerListener {
 public:
 	virtual void ClientJoined(SOCKET, char*) = 0;
 	virtual void ClientQuit(SOCKET) = 0;
-	virtual void ClientMessage(CString clientIP, CString message) = 0;
+	virtual void ClientMessage(SOCKET, CString, CString) = 0;
 };
 
 class WinSockServerManager
 {
 public:
-	const static char* SERVER_QUIT_COMMAND;
-	const static char* CLIENT_QUIT_COMMAND;
-
-public:
 	WinSockServerManager();
 	~WinSockServerManager();
 	BOOL StartServer(int sockType, int port);  // sockType: SOCK_STREAM or SOCK_DGRAM  分别对应TCP和UDP
 	void StopServer();
-	void SendToClient(std::string msg);
+	void SendToClients(std::string msg);
+	void SendToClient(SOCKET clientClient, std::string msg);
 	void SetWinSockServerListener(WinSockServerListener* listener);
 
 protected:
@@ -32,6 +29,7 @@ protected:
 	BOOL CreateSocket(int sockType);
 	BOOL BindAndListenSocket(int port);
 	void LaunchServer();
+	void SendToAllClients();
 	void SendToClient();
 	void CloseClientConnection(SOCKET clientSocket);
 	void StopAllThreads();
@@ -49,7 +47,9 @@ private:
 	BOOL m_runAcceptThread;
 	BOOL m_runSendThread;
 	BOOL m_runReceiveThread;
+	BOOL m_sendToAllClients;
 	BOOL m_sendToClient;
+	SOCKET m_targetClientSocket;
 	SOCKET m_sockServer;
 	std::vector<SOCKET> m_clientSocketGroup;
 	std::map<SOCKET, CString> m_clientIpTable;
