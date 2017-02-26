@@ -14,6 +14,17 @@
 
 // CWinSockServerDlg 对话框
 
+char* UnicodeToAnsi(const wchar_t* szStr) {
+	int nLen = WideCharToMultiByte(CP_ACP, 0, szStr, -1, NULL, 0, NULL, NULL);
+	char *ansiText = new char[nLen];
+	WideCharToMultiByte(CP_ACP, 0, szStr, -1, ansiText, nLen, NULL, NULL);
+	if (nLen == 0)
+	{
+		return NULL;
+	}
+	return ansiText;
+}
+
 CWinSockServerDlg* CWinSockServerDlg::m_pDlgInstance = NULL;
 
 CWinSockServerDlg::CWinSockServerDlg(CWnd* pParent /*=NULL*/)
@@ -33,6 +44,7 @@ BEGIN_MESSAGE_MAP(CWinSockServerDlg, CDialogEx)
 	ON_WM_QUERYDRAGICON()
 	ON_BN_CLICKED(IDC_START_SERVER, &CWinSockServerDlg::OnBnClickedStartServer)
 	ON_BN_CLICKED(IDB_SEND, &CWinSockServerDlg::OnBnClickedSend)
+	ON_WM_CLOSE()
 END_MESSAGE_MAP()
 
 
@@ -95,7 +107,6 @@ void CWinSockServerDlg::OnBnClickedStartServer()
 		StartServer(6000);
 	}
 	else {
-		NotifyClientServerReadyForQuit();
 		StopServer();
 		m_clientList.ResetContent();
 	}
@@ -103,7 +114,23 @@ void CWinSockServerDlg::OnBnClickedStartServer()
 
 void CWinSockServerDlg::OnBnClickedSend()
 {
-	m_socketServerManager.SendToClient("Hello, everyone!");
+	BOOL isConnected = (SendDlgItemMessage(IDC_START_SERVER, BM_GETCHECK) == BST_CHECKED) && m_clientList.GetCount() > 0;
+	if (!isConnected) {
+		MessageBox(L"未建立连接");
+		return;
+	}
+
+	CString sendData;
+	GetDlgItemText(IDE_SEND, sendData);
+	if (sendData.GetLength() == 0)
+	{
+		MessageBox(L"发送文本不能不空");
+		return;
+	}
+
+	char* ansiData = UnicodeToAnsi(sendData);
+	m_socketServerManager.SendToClient(ansiData);
+	SetDlgItemText(IDE_SEND, L"");
 }
 
 void CWinSockServerDlg::NotifyClientServerReadyForQuit()
@@ -180,6 +207,16 @@ void CWinSockServerDlg::StartServer(int port)
 
 void CWinSockServerDlg::StopServer()
 {
+	if (m_clientList.GetCount() > 0) {
+		NotifyClientServerReadyForQuit();
+	}
 	m_socketServerManager.StopServer();
-	SendDlgItemMessage(IDC_START_SERVER, BM_SETCHECK, FALSE);
+}
+
+
+void CWinSockServerDlg::OnClose()
+{
+	StopServer();
+
+	__super::OnClose();
 }

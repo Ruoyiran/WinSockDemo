@@ -65,4 +65,5 @@ public:
 	afx_msg void OnBnClickedStartServer();
 	afx_msg void OnBnClickedSend();
 
+	afx_msg void OnClose();
 };

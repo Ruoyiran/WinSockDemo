@@ -132,7 +132,11 @@ void CWinSockClientDlg::NotifyServerClientReadyForQuit()
 
 void CWinSockClientDlg::OnClose()
 {
-	NotifyServerClientReadyForQuit();
-	StopConnect();
-	CDialogEx::OnClose();
+	BOOL isChecked = (SendDlgItemMessage(IDC_CONNECT_TO_SERVER, BM_GETCHECK) == BST_CHECKED);
+	if (isChecked) {
+		NotifyServerClientReadyForQuit();
+		StopConnect();
+	}
+
+	__super::OnClose();
 }
