@@ -13,9 +13,22 @@ $RECYCLE.BIN/
 *.msi
 *.msm
 *.msp
+*.exe
 
 # Windows shortcuts
 *.lnk
+
+# Visual Studio Temporary File
+*.pdb
+*.ilk
+*.sdf
+*.opendb
+
+# Visual Studio Temporary Folders
+Debug
+ipch
+Release
+.vs
 
 # =========================
 # Operating System Files
