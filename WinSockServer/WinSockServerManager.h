@@ -1,8 +1,6 @@
 #pragma once
 #include <vector>
 
-const int kMaxRecvDataBufferSize = 1024;
-
 class WinSockServerListener {
 public:
 	virtual void ClientJoined(SOCKET, char*) = 0;
@@ -12,30 +10,31 @@ public:
 class WinSockServerManager
 {
 public:
+	const static char* SERVER_QUIT_COMMAND;
+	const static char* CLIENT_QUIT_COMMAND;
+
+public:
 	WinSockServerManager();
 	~WinSockServerManager();
-	BOOL StartServer(int sockType, int port);
+	BOOL StartServer(int sockType, int port);  // sockType: SOCK_STREAM or SOCK_DGRAM  分别对应TCP和UDP
 	void StopServer();
 	void SendToClient(std::string msg);
 	void SetWinSockServerListener(WinSockServerListener* listener);
 
 protected:
-	BOOL CreateSocket(int sockType); // type: SOCK_STREAM or SOCK_DGRAM  分别对应TCP和UDP
+	/* 线程函数 */
+	static DWORD WINAPI AcceptListeningThread(LPVOID lpParameter);
+	static DWORD WINAPI SendMessageThread(LPVOID lpParameter);
+	static DWORD WINAPI ReceiveMessageThread(LPVOID lpParameter);
+
+	BOOL CreateSocket(int sockType);
 	BOOL BindAndListenSocket(int port);
 	void LaunchServer();
 	void SendToClient();
-
-private:
-	static DWORD WINAPI AcceptListeningThread(LPVOID lpParameter);
-	static DWORD WINAPI ReceiveMessageThread(LPVOID lpParameter);
-	static DWORD WINAPI SendMessageThread(LPVOID lpParameter);
-
 	void CloseClientConnection(SOCKET clientSocket);
 	void StopAllThreads();
 	void ClientJoined(SOCKET clientSocket, char* clientIP);
-
 	void ClientQuit(SOCKET clientSocket);
-	void ClearAllCallbacks();
 
 private:
 	WinSockServerListener* m_pWinSockServerListener;

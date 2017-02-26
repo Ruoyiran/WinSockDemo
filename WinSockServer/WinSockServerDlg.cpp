@@ -95,7 +95,9 @@ void CWinSockServerDlg::OnBnClickedStartServer()
 		StartServer(6000);
 	}
 	else {
+		NotifyClientServerReadyForQuit();
 		StopServer();
+		m_clientList.ResetContent();
 	}
 }
 
@@ -104,16 +106,20 @@ void CWinSockServerDlg::OnBnClickedSend()
 	m_socketServerManager.SendToClient("Hello, everyone!");
 }
 
+void CWinSockServerDlg::NotifyClientServerReadyForQuit()
+{
+	m_socketServerManager.SendToClient(WinSockServerManager::SERVER_QUIT_COMMAND);
+	Sleep(300);
+}
+
 void CWinSockServerDlg::ClientJoined(SOCKET clientSocket, char* clientIP)
 {
-	::AfxMessageBox(L"Client joined. IP: "+ CString(clientIP));
 	if (m_pDlgInstance != NULL)
 		m_pDlgInstance->AddClientToList(clientSocket, clientIP);
 }
 
 void CWinSockServerDlg::ClientQuit(SOCKET clientSocket)
 {
-	::AfxMessageBox(L"Client quit.");
 	if (m_pDlgInstance != NULL) 
 		m_pDlgInstance->RemoveClientFromList(clientSocket);
 }
@@ -168,10 +174,12 @@ void CWinSockServerDlg::StartServer(int port)
 	}
 	else {
 		MessageBox(L"·þÎñÆ÷Æô¶¯Ê§°Ü");
+		SendDlgItemMessage(IDC_START_SERVER, BM_SETCHECK, FALSE);
 	}
 }
 
 void CWinSockServerDlg::StopServer()
 {
 	m_socketServerManager.StopServer();
+	SendDlgItemMessage(IDC_START_SERVER, BM_SETCHECK, FALSE);
 }

@@ -44,15 +44,13 @@ private:
 
 private:
 	void StartServer(int port);
-
 	void ClientJoined(SOCKET clientSocket, char* clientIP);
 	void ClientQuit(SOCKET clientSocket);
-
 	void AddClientToList(SOCKET clientSocket, char* clientIP);
 	void RemoveClientFromList(SOCKET clientSocket);
-
-	int FindClientPositionInList(SOCKET clientSocket);
 	void RemoveClientData(int index);
+	int FindClientPositionInList(SOCKET clientSocket);
+	void NotifyClientServerReadyForQuit();
 
 // й╣ож
 protected:

@@ -1,6 +1,10 @@
 #include "stdafx.h"
 #include "WinSockServerManager.h"
 
+const int kMaxRecvDataBufferSize = 1024;
+const char* WinSockServerManager::SERVER_QUIT_COMMAND = "server:quit";
+const char* WinSockServerManager::CLIENT_QUIT_COMMAND = "client:quit";
+
 struct WinSockPackage {
 	SOCKET clientSocket;
 	WinSockServerManager* pSockServerInstance;
@@ -66,7 +70,7 @@ BOOL WinSockServerManager::CreateSocket(int type) {
 
 	m_sockServer = socket(AF_INET, type, 0);
 
-	if (m_sockServer == -1) {
+	if (m_sockServer == INVALID_SOCKET) {
 		closesocket(m_sockServer);
 		WSACleanup();
 		return FALSE;
@@ -153,12 +157,6 @@ DWORD WinSockServerManager::AcceptListeningThread(LPVOID lpParameter)
 	return 0;
 }
 
-BOOL CheckIsQuit(char* data)
-{
-	// data == "quit" ?
-	return (data[0] == 'q' && data[1] == 'u' && data[2] == 'i' && data[3] == 't' && data[4] == '\0');
-}
-
 DWORD WinSockServerManager::ReceiveMessageThread(LPVOID lpParameter)
 {
 	WinSockPackage* package = (WinSockPackage*)lpParameter;
@@ -176,14 +174,16 @@ DWORD WinSockServerManager::ReceiveMessageThread(LPVOID lpParameter)
 
 		WaitForSingleObject(pThis->m_bufferMutex, INFINITE);
 
-		BOOL isQuit = CheckIsQuit(recvBuf);
+		BOOL isQuit = !strcmp(CLIENT_QUIT_COMMAND, recvBuf);
 		if (isQuit) {
 			pThis->ClientQuit(clientSocket);
 			break;
 		}
 
 		CString recvData(recvBuf);
-
+		if (recvData.GetLength()) {
+			AfxMessageBox(L"Client: " + recvData);
+		}
 		ReleaseSemaphore(pThis->m_bufferMutex, 1, NULL);
 	}
 	return 0;

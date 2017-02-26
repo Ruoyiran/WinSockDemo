@@ -14,8 +14,6 @@
 
 // CWinSockClientDlg 对话框
 
-
-
 CWinSockClientDlg::CWinSockClientDlg(CWnd* pParent /*=NULL*/)
 	: CDialogEx(IDD_WINSOCKCLIENT_DIALOG, pParent)
 {
@@ -30,6 +28,8 @@ void CWinSockClientDlg::DoDataExchange(CDataExchange* pDX)
 BEGIN_MESSAGE_MAP(CWinSockClientDlg, CDialogEx)
 	ON_WM_PAINT()
 	ON_WM_QUERYDRAGICON()
+	ON_BN_CLICKED(IDC_CONNECT_TO_SERVER, &CWinSockClientDlg::OnBnClickedConnectToServer)
+	ON_WM_CLOSE()
 END_MESSAGE_MAP()
 
 
@@ -85,3 +85,54 @@ HCURSOR CWinSockClientDlg::OnQueryDragIcon()
 	return static_cast<HCURSOR>(m_hIcon);
 }
 
+void CWinSockClientDlg::OnBnClickedConnectToServer()
+{
+	BOOL isChecked = (SendDlgItemMessage(IDC_CONNECT_TO_SERVER, BM_GETCHECK) == BST_CHECKED);
+	if (isChecked) {
+		ConnectToServer();
+	}
+	else
+	{
+		NotifyServerClientReadyForQuit();
+		StopConnect();
+	}
+}
+
+void CWinSockClientDlg::ConnectToServer()
+{
+	m_winSockClientManager.SetWinSockClientListener(this);
+
+	BOOL success = m_winSockClientManager.StartConnect("127.0.0.1", 6000);
+	if (success) {
+		MessageBox(L"连接成功");
+	}
+	else {
+		MessageBox(L"无法连接到服务器");
+		SendDlgItemMessage(IDC_CONNECT_TO_SERVER, BM_SETCHECK, FALSE);
+	}
+}
+
+void CWinSockClientDlg::ServerHasDisconnected()
+{
+	MessageBox(L"Server disconnected.");
+	StopConnect();
+}
+
+void CWinSockClientDlg::StopConnect()
+{
+	m_winSockClientManager.StopConnect();
+	SendDlgItemMessage(IDC_CONNECT_TO_SERVER, BM_SETCHECK, FALSE);
+}
+
+void CWinSockClientDlg::NotifyServerClientReadyForQuit()
+{
+	m_winSockClientManager.SendToServer(WinSockClientManager::CLIENT_QUIT_COMMAND);
+	Sleep(300);
+}
+
+void CWinSockClientDlg::OnClose()
+{
+	NotifyServerClientReadyForQuit();
+	StopConnect();
+	CDialogEx::OnClose();
+}
