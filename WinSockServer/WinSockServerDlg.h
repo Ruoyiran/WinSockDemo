@@ -22,7 +22,6 @@ private:
 		}
 	};
 
-	void StopServer();
 	// 构造
 public:
 	CWinSockServerDlg(CWnd* pParent = NULL);	// 标准构造函数
@@ -41,18 +40,28 @@ private:
 	std::list<ClientSocketData> m_clientSocketDataBuffer;
 	WinSockServerManager m_socketServerManager;
 	CListBox m_clientList;
+	CEdit m_clientMessageEditText;
+
+protected:
+	/* Override WinSockServerListener functions */
+	void ClientJoined(SOCKET clientSocket, char* clientIP);
+	void ClientQuit(SOCKET clientSocket);
+	void ClientMessage(CString clientIP, CString message);
 
 private:
 	void StartServer(int port);
-	void ClientJoined(SOCKET clientSocket, char* clientIP);
-	void ClientQuit(SOCKET clientSocket);
+	void StopServer();
 	void AddClientToList(SOCKET clientSocket, char* clientIP);
 	void RemoveClientFromList(SOCKET clientSocket);
 	void RemoveClientData(int index);
 	int FindClientPositionInList(SOCKET clientSocket);
 	void NotifyClientServerReadyForQuit();
+	void AppendClientMessage(const CString & msg);
+	CString GetFormatedString(CString &clientIP, CString &message);
+	CString GetHostIpAddr();
+	int GetPortNumber();
 
-// 实现
+	// 实现
 protected:
 	HICON m_hIcon;
 

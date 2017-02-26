@@ -14,7 +14,9 @@
 
 // CWinSockServerDlg 对话框
 
-char* UnicodeToAnsi(const wchar_t* szStr) {
+const CString kDefaultPortNumber = L"6000";
+
+std::string UnicodeToAnsi(const wchar_t* szStr) {
 	int nLen = WideCharToMultiByte(CP_ACP, 0, szStr, -1, NULL, 0, NULL, NULL);
 	char *ansiText = new char[nLen];
 	WideCharToMultiByte(CP_ACP, 0, szStr, -1, ansiText, nLen, NULL, NULL);
@@ -22,10 +24,40 @@ char* UnicodeToAnsi(const wchar_t* szStr) {
 	{
 		return NULL;
 	}
-	return ansiText;
+	std::string resultText(ansiText);
+	delete ansiText;
+
+	return resultText;
+}
+
+CString GetCurrentSystemTime() {
+	SYSTEMTIME st;
+	GetLocalTime(&st);
+	CString currentTime;
+	currentTime.Format(L"%02d:%02d:%02d", st.wHour, st.wMinute, st.wSecond);
+	return currentTime;
 }
 
 CWinSockServerDlg* CWinSockServerDlg::m_pDlgInstance = NULL;
+
+int CWinSockServerDlg::GetPortNumber()
+{
+	CString portText;
+	GetDlgItemText(IDE_PORT_NUMBER, portText);
+	if (portText.GetLength() == 0) {
+		MessageBox(L"端口号不能为空");
+		return -1;
+	}
+
+	std::string portStr = UnicodeToAnsi(portText);
+	int port = atoi(portStr.c_str());
+	return port;
+}
+
+CString CWinSockServerDlg::GetHostIpAddr()
+{
+	return L"127.0.0.1";
+}
 
 CWinSockServerDlg::CWinSockServerDlg(CWnd* pParent /*=NULL*/)
 	: CDialogEx(IDD_WINSOCKSERVER_DIALOG, pParent)
@@ -37,6 +69,7 @@ void CWinSockServerDlg::DoDataExchange(CDataExchange* pDX)
 {
 	CDialogEx::DoDataExchange(pDX);
 	DDX_Control(pDX, IDL_CLIENT_LIST, m_clientList);
+	DDX_Control(pDX, IDE_CLIENT_MESSAGE, m_clientMessageEditText);
 }
 
 BEGIN_MESSAGE_MAP(CWinSockServerDlg, CDialogEx)
@@ -59,8 +92,12 @@ BOOL CWinSockServerDlg::OnInitDialog()
 	SetIcon(m_hIcon, TRUE);			// 设置大图标
 	SetIcon(m_hIcon, FALSE);		// 设置小图标
 
-	// TODO: 在此添加额外的初始化代码
+									// TODO: 在此添加额外的初始化代码
 	m_pDlgInstance = this;
+	SetDlgItemText(IDE_PORT_NUMBER, kDefaultPortNumber);
+	CString hostIP = GetHostIpAddr();
+	SetDlgItemText(IDC_HOST_IP_ADDR, hostIP);
+
 	return TRUE;  // 除非将焦点设置到控件，否则返回 TRUE
 }
 
@@ -104,7 +141,12 @@ void CWinSockServerDlg::OnBnClickedStartServer()
 {
 	BOOL isChecked = (SendDlgItemMessage(IDC_START_SERVER, BM_GETCHECK) == BST_CHECKED);
 	if (isChecked) {
-		StartServer(6000);
+		int port = GetPortNumber();
+		if (port < 0) {
+			SendDlgItemMessage(IDC_START_SERVER, BM_SETCHECK, BST_UNCHECKED);
+			return;
+		}
+		StartServer(port);
 	}
 	else {
 		StopServer();
@@ -128,7 +170,7 @@ void CWinSockServerDlg::OnBnClickedSend()
 		return;
 	}
 
-	char* ansiData = UnicodeToAnsi(sendData);
+	std::string ansiData = UnicodeToAnsi(sendData);
 	m_socketServerManager.SendToClient(ansiData);
 	SetDlgItemText(IDE_SEND, L"");
 }
@@ -147,8 +189,46 @@ void CWinSockServerDlg::ClientJoined(SOCKET clientSocket, char* clientIP)
 
 void CWinSockServerDlg::ClientQuit(SOCKET clientSocket)
 {
-	if (m_pDlgInstance != NULL) 
+	if (m_pDlgInstance != NULL)
 		m_pDlgInstance->RemoveClientFromList(clientSocket);
+}
+
+void CWinSockServerDlg::ClientMessage(CString clientIP, CString message)
+{
+	CString formatedMessage = GetFormatedString(clientIP, message);
+	AppendClientMessage(formatedMessage);
+}
+
+CString CWinSockServerDlg::GetFormatedString(CString &clientIP, CString &message)
+{
+	CString currentTime = GetCurrentSystemTime();
+	CString formatedMessage;
+	formatedMessage.Append(L"【");
+	formatedMessage.Append(L" ");
+	formatedMessage.Append(clientIP);
+	formatedMessage.Append(L"】");
+
+	formatedMessage.Append(L"\r\n");
+
+	formatedMessage.Append(L"[");
+	formatedMessage.Append(currentTime);
+	formatedMessage.Append(L"] ");
+	formatedMessage.Append(message);
+	return formatedMessage;
+}
+
+void CWinSockServerDlg::AppendClientMessage(const CString &msg) {
+	CString curText;
+	GetDlgItemText(IDE_CLIENT_MESSAGE, curText);
+	if (curText.GetLength() > 0)
+	{
+		curText.Append(L"\r\n\r\n");
+	}
+
+	curText.Append(msg);
+
+	m_clientMessageEditText.SetWindowTextW(curText);
+	m_clientMessageEditText.LineScroll(m_clientMessageEditText.GetLineCount() - 1, 0);
 }
 
 void CWinSockServerDlg::AddClientToList(SOCKET clientSocket, char* clientIP)
@@ -212,7 +292,6 @@ void CWinSockServerDlg::StopServer()
 	}
 	m_socketServerManager.StopServer();
 }
-
 
 void CWinSockServerDlg::OnClose()
 {

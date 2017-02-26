@@ -181,9 +181,8 @@ DWORD WinSockServerManager::ReceiveMessageThread(LPVOID lpParameter)
 		}
 
 		CString recvData(recvBuf);
-		if (recvData.GetLength()) {
-			AfxMessageBox(L"Client: " + recvData);
-		}
+		pThis->ReceiveMessage(clientSocket, recvData);
+
 		ReleaseSemaphore(pThis->m_bufferMutex, 1, NULL);
 	}
 	return 0;
@@ -226,7 +225,8 @@ void WinSockServerManager::SetWinSockServerListener(WinSockServerListener * list
 
 void WinSockServerManager::ClientJoined(SOCKET clientSocket, char* clientIP)
 {
-	m_clientSocketGroup.push_back(clientSocket);
+	AddClientSocketBuffer(clientSocket, clientIP);
+
 	if (m_pWinSockServerListener != NULL) {
 		m_pWinSockServerListener->ClientJoined(clientSocket, clientIP);
 	}
@@ -242,8 +242,36 @@ void WinSockServerManager::ClientQuit(SOCKET clientSocket)
 
 void WinSockServerManager::CloseClientConnection(SOCKET clientSocket)
 {
-	std::vector<SOCKET>::iterator result = find(m_clientSocketGroup.begin(), m_clientSocketGroup.end(), clientSocket);
-	m_clientSocketGroup.erase(result);
+	RemoveClientSocketBuffer(clientSocket);
+
 	closesocket(clientSocket);
 	ReleaseSemaphore(m_bufferMutex, 1, NULL);
+}
+
+void WinSockServerManager::ReceiveMessage(SOCKET clientSocket, CString &recvData)
+{
+	if (recvData.GetLength() > 0 && m_pWinSockServerListener != NULL) {
+		const CString &clientIP = m_clientIpTable[clientSocket];
+		m_pWinSockServerListener->ClientMessage(clientIP, recvData);
+	}
+}
+
+void WinSockServerManager::RemoveClientSocketBuffer(SOCKET clientSocket)
+{
+	std::vector<SOCKET>::iterator targetIter1 = find(m_clientSocketGroup.begin(), m_clientSocketGroup.end(), clientSocket);
+	m_clientSocketGroup.erase(targetIter1);
+
+	for (auto iter = m_clientIpTable.begin(); iter != m_clientIpTable.end(); ++iter)
+	{
+		if (iter->first == clientSocket) {
+			m_clientIpTable.erase(iter);
+			break;
+		}
+	}
+}
+
+void WinSockServerManager::AddClientSocketBuffer(SOCKET clientSocket, char* clientIP)
+{
+	m_clientSocketGroup.push_back(clientSocket);
+	m_clientIpTable[clientSocket] = clientIP;
 }

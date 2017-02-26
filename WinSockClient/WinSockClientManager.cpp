@@ -140,9 +140,8 @@ DWORD WinSockClientManager::ReceiveMessageThread(LPVOID lpParameter)
 			break;
 		}
 		CString recvData(recvBuf);
-		if (recvData.GetLength() > 0) {
-			AfxMessageBox(L"Server says: " + recvData);
-		}
+		pThis->ReceiveMessage(recvData);
+
 		ReleaseSemaphore(pThis->m_bufferMutex, 1, NULL);
 	}
 
@@ -175,4 +174,12 @@ void WinSockClientManager::SendToServer()
 		send(m_sockClient, m_sendMessage.c_str(), m_sendMessage.length(), 0);
 	}
 	m_sendToServer = FALSE;
+}
+
+void WinSockClientManager::ReceiveMessage(CString& recvData)
+{
+	if (recvData.GetLength() > 0 && m_pWinSockClientListener!= NULL) {
+		CString serverIP = L"127.0.0.1";
+		m_pWinSockClientListener->ServerMessage(serverIP, recvData);
+	}
 }

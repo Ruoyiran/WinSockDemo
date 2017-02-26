@@ -1,10 +1,12 @@
 #pragma once
 #include <vector>
+#include <map>
 
 class WinSockServerListener {
 public:
 	virtual void ClientJoined(SOCKET, char*) = 0;
 	virtual void ClientQuit(SOCKET) = 0;
+	virtual void ClientMessage(CString clientIP, CString message) = 0;
 };
 
 class WinSockServerManager
@@ -35,6 +37,9 @@ protected:
 	void StopAllThreads();
 	void ClientJoined(SOCKET clientSocket, char* clientIP);
 	void ClientQuit(SOCKET clientSocket);
+	void ReceiveMessage(SOCKET clientSocket, CString &recvData);
+	void RemoveClientSocketBuffer(SOCKET clientSocket);
+	void AddClientSocketBuffer(SOCKET clientSocket, char* clientIP);
 
 private:
 	WinSockServerListener* m_pWinSockServerListener;
@@ -47,5 +52,6 @@ private:
 	BOOL m_sendToClient;
 	SOCKET m_sockServer;
 	std::vector<SOCKET> m_clientSocketGroup;
+	std::map<SOCKET, CString> m_clientIpTable;
 	std::string m_sendedMessage;
 };

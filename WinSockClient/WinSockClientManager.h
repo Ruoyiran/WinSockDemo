@@ -4,6 +4,7 @@
 class WinSockClientListener {
 public:
 	virtual void ServerHasDisconnected() = 0;
+	virtual void ServerMessage(CString serverIP, CString message) = 0;
 };
 
 class WinSockClientManager {
@@ -31,6 +32,7 @@ protected:
 	void LaunchSendRecvThread();
 	void StopAllThreads();
 	void SendToServer();
+	void ReceiveMessage(CString& recvData);
 
 private:
 	WinSockClientListener *m_pWinSockClientListener;

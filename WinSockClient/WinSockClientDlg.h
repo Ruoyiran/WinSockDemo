@@ -5,6 +5,7 @@
 #pragma once
 
 #include "WinSockClientManager.h"
+#include "afxwin.h"
 
 // CWinSockClientDlg 对话框
 class CWinSockClientDlg : public CDialogEx, public WinSockClientListener
@@ -23,13 +24,19 @@ public:
 
 // 实现
 protected:
-	void ConnectToServer();
+	virtual void ServerHasDisconnected();
+	virtual void ServerMessage(CString serverIP, CString message);
+
+	void ConnectToServer(char* ipAddr, int port);
 	void StopConnect();
 	void NotifyServerClientReadyForQuit();
-	virtual void ServerHasDisconnected();
+	void AppendClientMessage(const CString & msg);
+	CString GetFormatedString(CString &clientIP, CString &message);
+	BOOL TryToIpAddrAndPortNumber(std::string& ipAddr, int& port);
 
 private:
 	WinSockClientManager m_winSockClientManager;
+	CEdit m_serverMessageEditText;
 
 protected:
 	HICON m_hIcon;
